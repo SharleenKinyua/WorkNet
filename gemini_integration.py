@@ -1,8 +1,12 @@
 import google.generativeai as genai
 import json
 import re
+import logging
 from django.conf import settings
 from typing import List, Dict, Any
+
+
+logger = logging.getLogger(__name__)
 
 class GeminiSkillExtractor:
     def __init__(self):
@@ -157,6 +161,12 @@ class MatchingEngine:
             job.description,
             workers_data
         )
+
+        # Quota limits or temporary API issues can return no AI matches.
+        # Fall back to deterministic local scoring so matching still works.
+        if not ai_matches:
+            logger.warning("Gemini returned no matches; using SimpleMatchingEngine fallback")
+            return self._fallback_matches(job)
         
         # Combine AI scores with algorithmic proximity
         final_matches = []
@@ -190,3 +200,10 @@ class MatchingEngine:
         
         # Sort by final match score
         return sorted(final_matches, key=lambda x: x['match_score'], reverse=True)
+
+    def _fallback_matches(self, job):
+        """Fallback matching that does not depend on Gemini."""
+        from matcher.matching import SimpleMatchingEngine
+
+        simple_engine = SimpleMatchingEngine()
+        return simple_engine.match_workers_to_job(job)

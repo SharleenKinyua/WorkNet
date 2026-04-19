@@ -665,8 +665,14 @@ def generate_matches(request, job_id):
         messages.error(request, 'Permission denied.')
         return redirect('dashboard')
     
-    matching_engine = MatchingEngine()
-    matches = matching_engine.match_workers_to_job(job)
+    try:
+        matching_engine = MatchingEngine()
+        matches = matching_engine.match_workers_to_job(job)
+    except Exception as e:
+        from .matching import SimpleMatchingEngine
+        matching_engine = SimpleMatchingEngine()
+        matches = matching_engine.match_workers_to_job(job)
+        print(f"Gemini matching failed in generate_matches, using simple matching: {e}")
     
     # Update existing matches
     JobMatch.objects.filter(job=job).delete()

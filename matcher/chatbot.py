@@ -1,9 +1,13 @@
 import google.generativeai as genai
 import json
 import re
+import logging
 from django.conf import settings
 from typing import List, Dict, Any
 from .models import Skill, WorkerProfile
+
+
+logger = logging.getLogger(__name__)
 
 class WorkNetChatbot:
     def __init__(self):
@@ -42,7 +46,14 @@ class WorkNetChatbot:
             response = self.model.generate_content(prompt)
             return response.text
         except Exception as e:
-            return f"I apologize, but I'm having trouble responding right now. Please try again later. Error: {str(e)}"
+            logger.warning("Gemini chatbot response failed: %s", e)
+            error_text = str(e).lower()
+            if 'quota' in error_text or '429' in error_text or 'rate limit' in error_text:
+                return (
+                    "I am temporarily unavailable because the AI service hit its quota limit. "
+                    "Please try again shortly."
+                )
+            return "I am having trouble responding right now. Please try again later."
     
     def _get_context(self, user_profile: WorkerProfile) -> str:
         """Get context about the user for personalized responses"""
